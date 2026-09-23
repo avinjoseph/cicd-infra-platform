@@ -20,17 +20,15 @@ provider "aws" {
   skip_credentials_validation = var.use_localstack
   skip_metadata_api_check     = var.use_localstack
   skip_requesting_account_id  = var.use_localstack
+  s3_use_path_style           = var.use_localstack
 
-  dynamic "endpoints" {
-    for_each = var.use_localstack ? [1] : []
-    content {
-      s3   = "http://127.0.0.1:4566"
-      ecr  = "http://127.0.0.1:4566"
-      ecs  = "http://127.0.0.1:4566"
-      iam  = "http://127.0.0.1:4566"
-      logs = "http://127.0.0.1:4566"
-      ec2  = "http://127.0.0.1:4566"
-      sts  = "http://127.0.0.1:4566"
-    }
+  endpoints {
+    s3   = var.use_localstack ? "http://127.0.0.1:4566" : null
+    ecr  = var.use_localstack ? "http://127.0.0.1:4566" : null
+    ecs  = var.use_localstack ? "http://127.0.0.1:4566" : null
+    iam  = var.use_localstack ? "http://127.0.0.1:4566" : null
+    logs = var.use_localstack ? "http://127.0.0.1:4566" : null
+    ec2  = var.use_localstack ? "http://127.0.0.1:4566" : null
+    sts  = var.use_localstack ? "http://127.0.0.1:4566" : null
   }
 }

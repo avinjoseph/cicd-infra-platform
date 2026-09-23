@@ -1,7 +1,7 @@
 variable "use_localstack" {
-  description = "Route all AWS API calls to a local LocalStack instance instead of real AWS. Keeps the whole project free to run."
+  description = "Use LocalStack instead of AWS"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "aws_region" {
