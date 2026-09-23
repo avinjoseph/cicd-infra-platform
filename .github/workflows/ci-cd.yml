@@ -146,10 +146,11 @@ jobs:
           AWS_DEFAULT_REGION: us-east-1
           DEBUG: "1"
         options: >-
-          --health-cmd="curl --fail http://localhost:4566/_localstack/health || exit 1"
+          --health-cmd="curl --fail --silent http://localhost:4566/_localstack/health || exit 1"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=12
+          --health-start-period=20s
+          --health-retries=18
     steps:
       - uses: actions/checkout@v4
 
@@ -171,25 +172,45 @@ jobs:
         run: terraform validate
 
       - name: Wait for LocalStack
+        shell: bash
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
+
+          health_url="http://127.0.0.1:4566/_localstack/health"
+          required_services=(s3 ecr ecs iam logs ec2)
+
           for i in $(seq 1 60); do
-            health="$(curl --fail --silent http://127.0.0.1:4566/_localstack/health || true)"
-            echo "$health"
-            if echo "$health" | jq -e '
-              .services.s3 == "available" and
-              .services.ecr == "available" and
-              .services.ecs == "available" and
-              .services.iam == "available" and
-              .services.logs == "available" and
-              .services.ec2 == "available"
-            ' >/dev/null 2>&1; then
-              echo "LocalStack is ready"
-              exit 0
+            if health="$(curl --silent --show-error --fail "$health_url")"; then
+              echo "$health" | jq .
+
+              ready=true
+              for service in "${required_services[@]}"; do
+                status="$(jq -r --arg service "$service" \
+                  '.services[$service] // "missing"' <<<"$health")"
+
+                echo "$service: $status"
+
+                case "$status" in
+                  available|running)
+                    ;;
+                  *)
+                    ready=false
+                    ;;
+                esac
+              done
+
+              if [[ "$ready" == true ]]; then
+                echo "LocalStack is ready"
+                exit 0
+              fi
+            else
+              echo "LocalStack health endpoint is not responding yet"
             fi
+
             echo "Waiting for LocalStack ($i/60)..."
             sleep 2
           done
+
           echo "LocalStack did not become ready"
           docker logs "${{ job.services.localstack.id }}" || true
           exit 1
