@@ -122,20 +122,39 @@ resource "aws_ecs_service" "app" {
   }
 
   network_configuration {
-    subnets          = data.aws_subnets.default.ids
+    subnets          = var.use_localstack ? aws_subnet.localstack[*].id : data.aws_subnets.default[0].ids
     assign_public_ip = true
   }
 
   tags = local.common_tags
 }
 
+resource "aws_vpc" "localstack" {
+  count      = var.use_localstack ? 1 : 0
+  cidr_block = "10.0.0.0/16"
+
+  tags = local.common_tags
+}
+
+resource "aws_subnet" "localstack" {
+  count             = var.use_localstack ? 1 : 0
+  vpc_id            = aws_vpc.localstack[0].id
+  cidr_block        = "10.0.1.0/24"
+  availability_zone = "${var.aws_region}a"
+
+  tags = local.common_tags
+}
+
 data "aws_vpc" "default" {
+  count   = var.use_localstack ? 0 : 1
   default = true
 }
 
 data "aws_subnets" "default" {
+  count = var.use_localstack ? 0 : 1
+
   filter {
     name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
+    values = [data.aws_vpc.default[0].id]
   }
 }
